@@ -216,6 +216,20 @@ function getMockDriverForProps(props: Props) {
   return { ...driver, severity };
 }
 
+function formatSubstationName(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "Unnamed substation";
+
+  return raw
+    .split(/(\s+|-|\/)/)
+    .map((token) => {
+      if (!token || /^\s+$/.test(token) || token === "-" || token === "/") return token;
+      if (/^[A-Z0-9]{2,}$/.test(token)) return token;
+      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+    })
+    .join("");
+}
+
 export default function MapView() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -238,7 +252,7 @@ export default function MapView() {
   const hazardSeverityFilterRef = useRef<Set<string>>(new Set(HAZARD_SEVERITY_LEVELS.map((h) => h.label)));
   const annotationsRef = useRef<Array<{ id: string; lng: number; lat: number; note: string }>>([]);
   const annotationModeRef = useRef(false);
-  const annotationDraftRef = useRef("Field note");
+  const annotationDraftRef = useRef("field note");
 
   /**
    * Mapbox token UX:
@@ -271,7 +285,7 @@ export default function MapView() {
   const [showDrivers, setShowDrivers] = useState(false);
   const [showHazards, setShowHazards] = useState(false);
   const [annotationMode, setAnnotationMode] = useState(false);
-  const [annotationDraft, setAnnotationDraft] = useState("Field note");
+  const [annotationDraft, setAnnotationDraft] = useState("field note");
   const [annotations, setAnnotations] = useState<Array<{ id: string; lng: number; lat: number; note: string }>>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCounties, setShowCounties] = useState(true);
@@ -394,7 +408,7 @@ export default function MapView() {
       }
     }
     const county = selectedCountyName ?? "None";
-    const subName = String(selectedProps?.name ?? "None");
+    const subName = selectedProps?.name ? formatSubstationName(selectedProps?.name) : "None";
     const subId = String(selectedProps?.asset_id ?? "-");
     const titleTheme = `${theme.slice(0, 1).toUpperCase()}${theme.slice(1)}`;
     const activeSubs = ((substationsDataRef.current?.features ?? []) as any[])
@@ -408,7 +422,7 @@ export default function MapView() {
       .map((f: any) => {
         const p = f?.properties ?? {};
         const driver = getMockDriverForProps(p);
-        return `<tr><td>${escapeHtml(String(p.name ?? "Unnamed"))}</td><td>${escapeHtml(String(p.asset_id ?? "-"))}</td><td><span class="pill pill-risk">Criticality ${Number(p.criticality ?? 0)}</span></td><td>${escapeHtml(driver.code)}</td><td>${escapeHtml(getCriticalityDuration(p))}</td><td>${escapeHtml(String(p.operator_zone ?? "-"))}</td></tr>`;
+        return `<tr><td>${escapeHtml(formatSubstationName(p.name))}</td><td>${escapeHtml(String(p.asset_id ?? "-"))}</td><td><span class="pill pill-risk">Criticality ${Number(p.criticality ?? 0)}</span></td><td>${escapeHtml(driver.code)}</td><td>${escapeHtml(getCriticalityDuration(p))}</td><td>${escapeHtml(String(p.operator_zone ?? "-"))}</td></tr>`;
       })
       .join("");
 
@@ -483,7 +497,7 @@ export default function MapView() {
 
     const recommendations = [
       highCriticalAssets.length > 0
-        ? `Review the highest critical substations first, starting with ${escapeHtml(String(highCriticalAssets[0]?.properties?.name ?? "the top-ranked asset"))}.`
+        ? `Review the highest critical substations first, starting with ${escapeHtml(formatSubstationName(highCriticalAssets[0]?.properties?.name))}.`
         : "No high-criticality substations are currently in scope; confirm whether that is expected or filter-driven.",
       showHazards && filteredHazards.length > 0
         ? `Cross-check the ${filteredHazards.length} in-scope hazard zones against dispatch or vegetation management priorities.`
@@ -530,7 +544,7 @@ export default function MapView() {
             : `<table><thead><tr><th>Substation</th><th>Criticality</th></tr></thead><tbody>${countySubstations
                 .slice()
                 .sort((a, b) => Number(b?.criticality ?? 0) - Number(a?.criticality ?? 0))
-                .map((s) => `<tr><td>${escapeHtml(String(s?.name ?? "Unnamed"))}</td><td>${Number(s?.criticality ?? 0)}</td></tr>`)
+                .map((s) => `<tr><td>${escapeHtml(formatSubstationName(s?.name))}</td><td>${Number(s?.criticality ?? 0)}</td></tr>`)
                 .join("")}</tbody></table>`}
         </section>`
       : "";
@@ -547,7 +561,7 @@ export default function MapView() {
               <span class="pill pill-risk">Criticality ${Number(selectedProps?.criticality ?? 0)}</span>
             </div>
             <div class="detail-grid">
-              <div class="detail-card"><span class="label">Name</span><strong>${escapeHtml(String(selectedProps?.name ?? "Unnamed"))}</strong></div>
+              <div class="detail-card"><span class="label">Name</span><strong>${escapeHtml(formatSubstationName(selectedProps?.name))}</strong></div>
               <div class="detail-card"><span class="label">Asset ID</span><strong>${escapeHtml(String(selectedProps?.asset_id ?? "-"))}</strong></div>
               <div class="detail-card"><span class="label">Operator zone</span><strong>${escapeHtml(String(selectedProps?.operator_zone ?? "-"))}</strong></div>
               <div class="detail-card"><span class="label">Asset type</span><strong>${escapeHtml(String(selectedProps?.asset_type ?? "-"))}</strong></div>
@@ -1697,7 +1711,7 @@ export default function MapView() {
         const hits = map.queryRenderedFeatures(e.point, { layers });
         if (hits.length > 0) return;
 
-        const note = annotationDraftRef.current.trim() || "Field note";
+        const note = annotationDraftRef.current.trim() || "field note";
         const id = `a-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         setAnnotations((prev) => [...prev, { id, lng: e.lngLat.lng, lat: e.lngLat.lat, note }]);
       });
@@ -1732,7 +1746,7 @@ export default function MapView() {
         <div className="token-error-card">
           <div className="token-error-title">Mapbox token required</div>
           <div className="token-error-body">
-            This app needs a Mapbox access token to render the map. Please add a token to{" "}
+            this app needs a Mapbox access token to render the map. please add a token to{" "}
             <span>.env.local</span>{" "}
             and restart the dev server (or reload the Codespace).
           </div>
@@ -1757,24 +1771,24 @@ export default function MapView() {
       <div ref={mapContainer} className="map-container" />
 
       {/* Basemap theme toggle */}
-      <div className="theme-toggle-wrap" role="group" aria-label="Theme toggle">
+      <div className="theme-toggle-wrap" role="group" aria-label="theme toggle">
         <button
           className={`theme-toggle-btn ${theme === "light" ? "active" : ""}`}
           onClick={() => setTheme("light")}
         >
-          Light
+          light
         </button>
         <button
           className={`theme-toggle-btn ${theme === "dark" ? "active" : ""}`}
           onClick={() => setTheme("dark")}
         >
-          Dark
+          dark
         </button>
         <button
           className={`theme-toggle-btn berry-btn ${theme === "berry" ? "active" : ""}`}
           onClick={() => setTheme("berry")}
         >
-          Berry
+          berry
         </button>
       </div>
 
@@ -1782,8 +1796,8 @@ export default function MapView() {
       <button
         className="help-btn"
         onClick={() => setIsHelpOpen(true)}
-        aria-label="Open navigation help"
-        title="How to navigate"
+        aria-label="open navigation help"
+        title="how to navigate"
       >
         ?
       </button>
@@ -1791,10 +1805,10 @@ export default function MapView() {
       <button
         className="snapshot-btn"
         onClick={handleOpenSnapshotHtml}
-        aria-label="Open snapshot html"
-        title="Open snapshot html"
+        aria-label="open snapshot html"
+        title="open snapshot html"
       >
-        Snapshot HTML
+        snapshot html
       </button>
 
       {/* Floating expand button when collapsed */}
@@ -1802,10 +1816,10 @@ export default function MapView() {
         <button
           className="panel-expand-btn"
           onClick={() => setIsPanelCollapsed(false)}
-          aria-label="Click to open info panel"
+          aria-label="click to open info panel"
         >
           <span className="expand-top-row">
-            <span className="expand-label">INFO</span>
+            <span className="expand-label">info</span>
             <BrainIcon size={20} className="brain-pulse-icon" />
           </span>
           <span className="expand-arrow">▶</span>
@@ -1816,11 +1830,11 @@ export default function MapView() {
       {!isPanelCollapsed && (
         <div className="info-panel">
           <div className="panel-header">
-            <div className="panel-title">Info Panel</div>
+            <div className="panel-title">info panel</div>
             <button
               className="panel-collapse-btn"
               onClick={() => setIsPanelCollapsed(true)}
-              title="Collapse info panel"
+              title="collapse info panel"
             >
               <BrainIcon size={16} className="brain-pulse-icon" />
               <span className="collapse-arrow">◀</span>
@@ -1829,32 +1843,32 @@ export default function MapView() {
 
           <div className="panel-section">
             <div className="legend-header-row">
-              <div className="panel-section-label">Need to know</div>
+              <div className="panel-section-label">need to know</div>
               <button
                 className="legend-collapse-btn"
                 onClick={() => setIsNeedToKnowCollapsed((v) => !v)}
-                title={isNeedToKnowCollapsed ? "Expand need to know" : "Collapse need to know"}
+                title={isNeedToKnowCollapsed ? "expand need to know" : "collapse need to know"}
               >
                 {isNeedToKnowCollapsed ? "▼" : "▲"}
               </button>
             </div>
             {!isNeedToKnowCollapsed && (
               <>
-                <div className="need-row"><span>Substations shown</span><strong>{shownSubstationsCount}</strong></div>
-                <div className="need-row"><span>High criticality (4-5)</span><strong>{highCriticalCount}</strong></div>
-                <div className="need-row"><span>Active filters</span><strong>{hasActiveFilters ? "yes" : "no"}</strong></div>
-                <div className="need-row"><span>Field annotations</span><strong>{annotations.length}</strong></div>
+                <div className="need-row"><span>substations shown</span><strong>{shownSubstationsCount}</strong></div>
+                <div className="need-row"><span>high criticality (4-5)</span><strong>{highCriticalCount}</strong></div>
+                <div className="need-row"><span>active filters</span><strong>{hasActiveFilters ? "yes" : "no"}</strong></div>
+                <div className="need-row"><span>field annotations</span><strong>{annotations.length}</strong></div>
               </>
             )}
           </div>
 
           <div className="panel-section">
             <div className="legend-header-row">
-              <div className="panel-section-label">Search</div>
+              <div className="panel-section-label">search</div>
               <button
                 className="legend-collapse-btn"
                 onClick={() => setIsSearchCollapsed((v) => !v)}
-                title={isSearchCollapsed ? "Expand search" : "Collapse search"}
+                title={isSearchCollapsed ? "expand search" : "collapse search"}
               >
                 {isSearchCollapsed ? "▼" : "▲"}
               </button>
@@ -1868,18 +1882,18 @@ export default function MapView() {
                   onKeyDown={(e) => { if (e.key === "Enter") handleSearchGo(); }}
                   placeholder="county or substation"
                 />
-                <button className="search-btn" onClick={handleSearchGo}>Go</button>
+                <button className="search-btn" onClick={handleSearchGo}>go</button>
               </div>
             )}
           </div>
 
           <div className="panel-section">
             <div className="legend-header-row">
-              <div className="panel-section-label">Annotation tool</div>
+              <div className="panel-section-label">annotation tool</div>
               <button
                 className="legend-collapse-btn"
                 onClick={() => setIsAnnotationCollapsed((v) => !v)}
-                title={isAnnotationCollapsed ? "Expand annotation tool" : "Collapse annotation tool"}
+                title={isAnnotationCollapsed ? "expand annotation tool" : "collapse annotation tool"}
               >
                 {isAnnotationCollapsed ? "▼" : "▲"}
               </button>
@@ -1901,16 +1915,16 @@ export default function MapView() {
                     onChange={(e) => setAnnotationDraft(e.target.value)}
                     placeholder="annotation label"
                   />
-                  <button className="search-btn" onClick={() => setAnnotations([])}>Clear</button>
+                  <button className="search-btn" onClick={() => setAnnotations([])}>clear</button>
                 </div>
-                <div className="layer-note">Tip: click an annotation dot to remove one.</div>
+                <div className="layer-note">tip: click an annotation dot to remove one.</div>
               </>
             )}
           </div>
 
           {/* Layer toggles */}
           <div className="panel-section layers-section">
-            <div className="panel-section-label">Layers</div>
+            <div className="panel-section-label">layers</div>
 
             <label className="layer-toggle">
               <input
@@ -1918,7 +1932,7 @@ export default function MapView() {
                 checked={showCounties}
                 onChange={(e) => setShowCounties(e.target.checked)}
               />
-              Counties (polygons)
+              counties (polygons)
             </label>
 
             <label className="layer-toggle">
@@ -1927,7 +1941,7 @@ export default function MapView() {
                 checked={showSubstations}
                 onChange={(e) => setShowSubstations(e.target.checked)}
               />
-              Substations
+              substations
             </label>
 
             {/* Only show the "risk view" toggle if substations are visible */}
@@ -1938,7 +1952,7 @@ export default function MapView() {
                   checked={riskView}
                   onChange={(e) => setRiskView(e.target.checked)}
                 />
-                Style substations by criticality
+                style substations by criticality
               </label>
             )}
 
@@ -1949,7 +1963,7 @@ export default function MapView() {
                   checked={showDrivers}
                   onChange={(e) => setShowDrivers(e.target.checked)}
                 />
-                Style substations by criticality drivers (simulated)
+                style substations by criticality drivers (simulated)
               </label>
             )}
 
@@ -1959,25 +1973,25 @@ export default function MapView() {
                 checked={showHazards}
                 onChange={(e) => setShowHazards(e.target.checked)}
               />
-              Atmospheric hazard zones (simulated)
+              atmospheric hazard zones (simulated)
             </label>
 
             {noPrimaryLayersActive && (
-              <div className="layer-empty-hint">No active county or substation layers selected.</div>
+              <div className="layer-empty-hint">no active county or substation layers selected.</div>
             )}
 
             <div className="data-source-note">
-              Note: Hazard zones, criticality drivers, time-at-criticality, annotation notes, and county population values are simulated for this prototype.
+              note: hazard zones, criticality drivers, time-at-criticality, annotation notes, and county population values are simulated for this prototype.
             </div>
           </div>
 
           <div className="panel-section">
             <div className="legend-header-row">
-              <div className="panel-section-label">Legends</div>
+              <div className="panel-section-label">legends</div>
               <button
                 className="legend-collapse-btn"
                 onClick={() => setIsLegendsCollapsed((v) => !v)}
-                title={isLegendsCollapsed ? "Expand legends" : "Collapse legends"}
+                title={isLegendsCollapsed ? "expand legends" : "collapse legends"}
               >
                 {isLegendsCollapsed ? "▼" : "▲"}
               </button>
@@ -1988,11 +2002,11 @@ export default function MapView() {
                 {showHazards && (
                   <div className="driver-legend">
                     <div className="legend-header-row">
-                      <div className="driver-legend-title">Atmospheric hazard zones (simulated) legend</div>
+                      <div className="driver-legend-title">atmospheric hazard zones (simulated) legend</div>
                       <button
                         className="legend-collapse-btn"
                         onClick={() => setIsHazardLegendCollapsed((v) => !v)}
-                        title={isHazardLegendCollapsed ? "Expand legend" : "Collapse legend"}
+                        title={isHazardLegendCollapsed ? "expand legend" : "collapse legend"}
                       >
                         {isHazardLegendCollapsed ? "▼" : "▲"}
                       </button>
@@ -2002,7 +2016,7 @@ export default function MapView() {
                         {HAZARD_SEVERITY_LEVELS.map((h) => (
                           <div key={h.label} className="driver-legend-row">
                             <span className="driver-legend-swatch" style={{ background: h.color, borderColor: h.borderColor }} />
-                            <span className="driver-legend-label">{h.label}</span>
+                            <span className="driver-legend-label">{h.label.toLowerCase()}</span>
                           </div>
                         ))}
                       </>
@@ -2012,14 +2026,14 @@ export default function MapView() {
 
                 {showSubstations && showDrivers && (
                   <>
-                    <div className="layer-note">Driver layer uses mock data for this prototype.</div>
+                    <div className="layer-note">driver layer uses mock data for this prototype.</div>
                     <div className="driver-legend">
                       <div className="legend-header-row">
-                        <div className="driver-legend-title">Driver color legend</div>
+                        <div className="driver-legend-title">driver color legend</div>
                         <button
                           className="legend-collapse-btn"
                           onClick={() => setIsDriverLegendCollapsed((v) => !v)}
-                          title={isDriverLegendCollapsed ? "Expand legend" : "Collapse legend"}
+                          title={isDriverLegendCollapsed ? "expand legend" : "collapse legend"}
                         >
                           {isDriverLegendCollapsed ? "▼" : "▲"}
                         </button>
@@ -2027,7 +2041,7 @@ export default function MapView() {
                       {!isDriverLegendCollapsed && DRIVER_TYPES.map((driver) => (
                         <div key={driver.code} className="driver-legend-row">
                           <span className="driver-legend-swatch" style={{ background: driver.color }} />
-                          <span className="driver-legend-label">{driver.label}</span>
+                          <span className="driver-legend-label">{driver.label.toLowerCase()}</span>
                         </div>
                       ))}
                     </div>
@@ -2037,11 +2051,11 @@ export default function MapView() {
                 {showSubstations && riskView && (
                   <div className="risk-legend">
                     <div className="legend-header-row">
-                      <div className="risk-legend-title">Criticality legend</div>
+                      <div className="risk-legend-title">criticality legend</div>
                       <button
                         className="legend-collapse-btn"
                         onClick={() => setIsRiskLegendCollapsed((v) => !v)}
-                        title={isRiskLegendCollapsed ? "Expand legend" : "Collapse legend"}
+                        title={isRiskLegendCollapsed ? "expand legend" : "collapse legend"}
                       >
                         {isRiskLegendCollapsed ? "▼" : "▲"}
                       </button>
@@ -2061,14 +2075,14 @@ export default function MapView() {
                             style={{ background: darkMode ? CRIT_SCALE_DARK_CORE[level - 1] : CRIT_SCALE.core[level - 1] }}
                           />
                         </span>
-                        <span className="risk-legend-label">{level} - {level <= 2 ? "Lower" : level === 3 ? "Moderate" : "Higher"}</span>
+                        <span className="risk-legend-label">{level} - {level <= 2 ? "lower" : level === 3 ? "moderate" : "higher"}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {!showHazards && !(showSubstations && showDrivers) && !(showSubstations && riskView) && (
-                  <div className="layer-note">Enable hazard, driver, or risk layers to see legends.</div>
+                  <div className="layer-note">enable hazard, driver, or risk layers to see legends.</div>
                 )}
               </>
             )}
@@ -2078,7 +2092,7 @@ export default function MapView() {
           <div className="panel-section">
             <div className="legend-header-row">
               <div className="filter-header-left">
-                <div className="panel-section-label">Filters</div>
+                <div className="panel-section-label">filters</div>
                 {isFilterCollapsed && hasActiveFilters && (
                   <span className="filter-applied-warning">filters currently applied</span>
                 )}
@@ -2086,7 +2100,7 @@ export default function MapView() {
               <button
                 className="legend-collapse-btn"
                 onClick={() => setIsFilterCollapsed((v) => !v)}
-                title={isFilterCollapsed ? "Expand filters" : "Collapse filters"}
+                title={isFilterCollapsed ? "expand filters" : "collapse filters"}
               >
                 {isFilterCollapsed ? "▼" : "▲"}
               </button>
@@ -2095,11 +2109,11 @@ export default function MapView() {
             {!isFilterCollapsed && (
               <>
                 {!showSubstations && (
-                  <div className="layer-note">Enable substations to apply filters.</div>
+                  <div className="layer-note">enable substations to apply filters.</div>
                 )}
 
                 <div className="filter-group">
-                  <div className="filter-group-label">Criticality</div>
+                  <div className="filter-group-label">criticality</div>
                   <div className="filter-crit-row">
                     {([1, 2, 3, 4, 5] as number[]).map((level) => (
                       <button
@@ -2127,9 +2141,9 @@ export default function MapView() {
                 </div>
 
                 <div className="filter-group">
-                  <div className="filter-group-label">Driver</div>
+                  <div className="filter-group-label">driver</div>
                   {!showDrivers && (
-                    <div className="layer-note">Enable criticality drivers layer to use driver filters.</div>
+                    <div className="layer-note">enable criticality drivers layer to use driver filters.</div>
                   )}
                   {DRIVER_TYPES.map((d) => (
                     <label key={d.code} className="driver-filter-row">
@@ -2153,9 +2167,9 @@ export default function MapView() {
                 </div>
 
                 <div className="filter-group">
-                  <div className="filter-group-label">Atmospheric hazard zones</div>
+                  <div className="filter-group-label">atmospheric hazard zones</div>
                   {!showHazards && (
-                    <div className="layer-note">Enable atmospheric hazard zones layer to use hazard filters.</div>
+                    <div className="layer-note">enable atmospheric hazard zones layer to use hazard filters.</div>
                   )}
                   {HAZARD_SEVERITY_LEVELS.map((h) => (
                     <label key={h.label} className="driver-filter-row">
@@ -2183,27 +2197,27 @@ export default function MapView() {
 
           {/* County selection section */}
           <div className="panel-section">
-            <div className="panel-section-label selected-heading">Selected county</div>
+            <div className="panel-section-label selected-heading">selected county</div>
             {!selectedCountyName ? (
-              <div className="panel-empty-text">Click a county to see its details.</div>
+              <div className="panel-empty-text">click a county to see its details.</div>
             ) : (
               <div className="county-card">
                 <div className="county-card-header">
-                  <div className="county-name">{selectedCountyName} County</div>
+                  <div className="county-name">{selectedCountyName} county</div>
                   {countyPopulation && (
                     <div className="county-population">
-                      Pop. {countyPopulation.toLocaleString()}
+                      pop. {countyPopulation.toLocaleString()}
                     </div>
                   )}
                 </div>
-                <div className="county-section-label">Substations ({countySubstations.length})</div>
+                <div className="county-section-label">substations ({countySubstations.length})</div>
                 {countySubstations.length === 0 ? (
-                  <div className="panel-empty-text">No substations found in this county.</div>
+                  <div className="panel-empty-text">no substations found in this county.</div>
                 ) : (
                   <div className="county-substations-list">
                     {countySubstations.map((sub, i) => (
                       <div key={i} className="county-sub-row">
-                        <span className="county-sub-name">{sub?.name ?? "Unnamed"}</span>
+                        <span className="county-sub-name">{formatSubstationName(sub?.name)}</span>
                         <CriticalityBadge value={Number(sub?.criticality ?? 0)} />
                       </div>
                     ))}
@@ -2215,10 +2229,10 @@ export default function MapView() {
 
           {/* Substation selection section */}
           <div className="panel-section">
-            <div className="panel-section-label selected-heading">Selected substation</div>
+            <div className="panel-section-label selected-heading">selected substation</div>
 
             {!selectedProps ? (
-              <div className="panel-empty-text">Click a substation to see its details.</div>
+              <div className="panel-empty-text">click a substation to see its details.</div>
             ) : (
               (() => {
                 const driver = getMockDriverForProps(selectedProps);
@@ -2228,10 +2242,10 @@ export default function MapView() {
                 <div className="substation-card-header">
                   <div className="substation-name-col">
                     <div className="substation-name">
-                      {selectedProps.name ?? "Unnamed Substation"}
+                      {formatSubstationName(selectedProps.name)}
                     </div>
                     <div className="substation-asset-id">
-                      Asset ID: {selectedProps.asset_id ?? "—"}
+                      asset id: {selectedProps.asset_id ?? "—"}
                     </div>
                   </div>
 
@@ -2240,16 +2254,16 @@ export default function MapView() {
 
                 {/* Simple key/value rows */}
                 <div className="substation-details-grid">
-                  <DetailRow label="County" value={selectedSubCountyName ?? "—"} />
-                  <DetailRow label="Operator zone" value={selectedProps.operator_zone ?? "—"} />
-                  <DetailRow label="Asset type" value={selectedProps.asset_type ?? "—"} />
-                  <DetailRow label="Time at current criticality" value={getCriticalityDuration(selectedProps)} />
+                  <DetailRow label="county" value={selectedSubCountyName ?? "—"} />
+                  <DetailRow label="operator zone" value={selectedProps.operator_zone ?? "—"} />
+                  <DetailRow label="asset type" value={selectedProps.asset_type ?? "—"} />
+                  <DetailRow label="time at current criticality" value={getCriticalityDuration(selectedProps)} />
                   <DetailRow
-                    label="Primary driver"
+                    label="primary driver"
                     value={<span className="driver-chip" style={{ background: driver.color }}>{driver.code}</span>}
                   />
-                  <DetailRow label="Driver detail" value={driver.label} />
-                  <DetailRow label="Driver severity" value={driver.severity} />
+                  <DetailRow label="driver detail" value={driver.label.toLowerCase()} />
+                  <DetailRow label="driver severity" value={driver.severity.toLowerCase()} />
                 </div>
               </div>
                 );
@@ -2262,7 +2276,7 @@ export default function MapView() {
       {/* Substation hover tooltip */}
       {hoveredSubProps && hoverPos && (
         <div className="sub-hover-tooltip" style={{ left: hoverPos.x, top: hoverPos.y }}>
-          <div className="sub-hover-name">{hoveredSubProps.name ?? "Unnamed"}</div>
+          <div className="sub-hover-name">{formatSubstationName(hoveredSubProps.name)}</div>
           <CriticalityBadge value={Number(hoveredSubProps.criticality ?? 0)} />
         </div>
       )}
@@ -2276,36 +2290,36 @@ export default function MapView() {
 
       {/* Navigation helper modal */}
       {isHelpOpen && (
-        <div className="help-overlay" role="dialog" aria-modal="true" aria-label="Navigation help">
+        <div className="help-overlay" role="dialog" aria-modal="true" aria-label="navigation help">
           <div className="help-modal">
             <div className="help-header">
-              <div className="help-title">How To Navigate</div>
+              <div className="help-title">how to navigate</div>
               <button
                 className="help-close-btn"
                 onClick={() => setIsHelpOpen(false)}
-                aria-label="Close help"
-                title="Close"
+                aria-label="close help"
+                title="close"
               >
                 X
               </button>
             </div>
             <div className="help-body">
-              <p>Use the left Info Panel to control layers, tools, filters, and inspect selected features.</p>
+              <p>use the left info panel to control layers, tools, filters, and inspect selected features.</p>
               <ol>
-                <li>Start with <strong>Need to know</strong> for quick counts: shown substations, high criticality, active filters, and field notes.</li>
-                <li>Turn Counties/Substations on or off in the Layers section.</li>
-                <li>Toggle <strong>Atmospheric hazard zones (simulated)</strong> in Layers to view simulated atmospheric risk areas (Low/Moderate/High) that can indicate where weather conditions may elevate grid risk.</li>
-                <li>Enable risk view to color substations by criticality (1 to 5).</li>
-                <li>Enable criticality drivers to overlay simulated driver codes and colors.</li>
-                <li>Expand Search to jump directly to a county or substation.</li>
-                <li>Expand Annotation tool, enable note mode, then click map areas to drop field notes.</li>
-                <li>Expand Filters to narrow visible substations by criticality and driver type.</li>
-                <li>Click a county to view county details and substations in that county.</li>
-                <li>Click a substation to view operator zone, criticality, and driver details.</li>
-                <li>Use <strong>Snapshot HTML</strong> at the top to open a live report with filters, high-criticality list, selections, and notes. You can then choose to download the file.</li>
-                <li>Use Light/Dark buttons at the top-left to switch basemap theme.</li>
-                <li>Collapse the panel with the brain button; reopen it with the Info tab.</li>
-                <li><strong>Simulation notice:</strong> atmospheric hazard zones, driver labels, time-at-criticality, annotation notes, county population values, and snapshot output are prototype simulation data.</li>
+                <li>start with <strong>need to know</strong> for quick counts: shown substations, high criticality, active filters, and field notes.</li>
+                <li>turn counties/substations on or off in the layers section.</li>
+                <li>toggle <strong>atmospheric hazard zones (simulated)</strong> in layers to view simulated atmospheric risk areas (low/moderate/high) that can indicate where weather conditions may elevate grid risk.</li>
+                <li>enable risk view to color substations by criticality (1 to 5).</li>
+                <li>enable criticality drivers to overlay simulated driver codes and colors.</li>
+                <li>expand search to jump directly to a county or substation.</li>
+                <li>expand annotation tool, enable note mode, then click map areas to drop field notes.</li>
+                <li>expand filters to narrow visible substations by criticality and driver type.</li>
+                <li>click a county to view county details and substations in that county.</li>
+                <li>click a substation to view operator zone, criticality, and driver details.</li>
+                <li>use <strong>snapshot html</strong> at the top to open a live report with filters, high-criticality list, selections, and notes. you can then choose to download the file.</li>
+                <li>use light/dark buttons at the top-left to switch basemap theme.</li>
+                <li>collapse the panel with the brain button; reopen it with the info tab.</li>
+                <li><strong>simulation notice:</strong> atmospheric hazard zones, driver labels, time-at-criticality, annotation notes, county population values, and snapshot output are prototype simulation data.</li>
               </ol>
             </div>
           </div>
@@ -2341,9 +2355,9 @@ function CriticalityBadge({ value }: { value: number }) {
     <div
       className="criticality-badge"
       style={{ background: CRIT_SCALE.badgeBg[idx], color: CRIT_SCALE.badgeFg[idx] }}
-      title="Criticality (1-5)"
+      title="criticality (1-5)"
     >
-      Criticality {v}
+      criticality {v}
     </div>
   );
 }
