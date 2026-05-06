@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# local archives
+*.zip
+
+# env files
+.env
+.env.local
+
+# node dependencies (workspace-level)
+node_modules/

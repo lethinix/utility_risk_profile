@@ -1,0 +1,97 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "HZ-001",
+        "hazard_type": "High Wind Shear",
+        "severity": "High",
+        "updated_at": "2026-04-12T10:00:00Z",
+        "note": "Simulated atmospheric hazard zone for prototype demonstration."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.58, 37.74],
+            [-122.48, 37.74],
+            [-122.44, 37.82],
+            [-122.54, 37.84],
+            [-122.60, 37.78],
+            [-122.58, 37.74]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "HZ-002",
+        "hazard_type": "Thermal Uplift Instability",
+        "severity": "Moderate",
+        "updated_at": "2026-04-12T10:00:00Z",
+        "note": "Simulated atmospheric hazard zone for prototype demonstration."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.36, 37.66],
+            [-122.26, 37.64],
+            [-122.20, 37.72],
+            [-122.28, 37.78],
+            [-122.38, 37.74],
+            [-122.36, 37.66]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "HZ-003",
+        "hazard_type": "Dry Lightning Corridor",
+        "severity": "Low",
+        "updated_at": "2026-04-12T10:00:00Z",
+        "note": "Simulated atmospheric hazard zone for prototype demonstration."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.18, 37.78],
+            [-122.06, 37.80],
+            [-122.02, 37.90],
+            [-122.12, 37.94],
+            [-122.22, 37.86],
+            [-122.18, 37.78]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "HZ-004",
+        "hazard_type": "Coastal Fog Intrusion",
+        "severity": "Moderate",
+        "updated_at": "2026-04-12T10:00:00Z",
+        "note": "Simulated atmospheric hazard zone for prototype demonstration."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.52, 37.60],
+            [-122.40, 37.58],
+            [-122.34, 37.66],
+            [-122.42, 37.70],
+            [-122.54, 37.66],
+            [-122.52, 37.60]
+          ]
+        ]
+      }
+    }
+  ]
+}
